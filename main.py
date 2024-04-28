@@ -9,7 +9,7 @@ from utils import train_model, evaluate_model, generate_token_prediction, save_c
 
 # File where to save model checkpoint and fully trained
 MODEL_CHECKPOINT_FOLDER = "ModelCheckpoints"
-FULLY_TRAINED_MODEL_FILE = "model.pth"
+FULL_TRAINED_MODEL = "model.pth"
 
 MODEL = TransformerOCR().to(DEVICE)
 OPTIMIZER = torch.optim.AdamW(MODEL.parameters(), betas=(0.9, 0.98), eps=1e-9, lr=LEARNING_RATE)
@@ -65,4 +65,4 @@ def main(training_dataset, validation_dataset, inference_iterable, training_data
                                                     t_loss=train_loss, v_loss=val_loss, checkpoint_folder=MODEL_CHECKPOINT_FOLDER)
             print(f"{GREEN}Done saving!{CLEAR}")
     
-    torch.save(MODEL.state_dict(), FULLY_TRAINED_MODEL_FILE)
+    torch.save(MODEL.state_dict(), FULL_TRAINED_MODEL)
