@@ -20,19 +20,16 @@ class FileTextLineDataset(Dataset):
             if line[0] == "#":
                 continue
             split_line = line.split()
-
             if split_line[1] == "ok":
                 image_path = split_line[0] + ".png"
                 sentence = " ".join(split_line[8::]).replace("|", " ")
                 dataset_dict.append({image_path: sentence})
-        
         self.dataset = dataset_dict
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        
         image_file, target = next(iter(self.dataset[index].items()))
         image_file_split = image_file.split("-")
         folder_name1 = image_file_split[0]
@@ -42,36 +39,31 @@ class FileTextLineDataset(Dataset):
         image_to_np_aray = cv.imread(image_file_path)
         normalized_image = image_processing_for_real_data(image_to_np_aray)
         target_as_tensor = text_to_tensor_and_pad_with_zeros(text=target, max_length=MAX_PHRASE_LENGTH)
-        
         sample = {"image": torch.from_numpy(normalized_image).unsqueeze(0), "expected": target_as_tensor}
-
         return sample
 
 class GeneratedDataset(Dataset):
-    def __init__(self):
+    def __init__(self, number_of_generated_dataset: int):
         super().__init__()
         self.words = open(os.path.join("datasets/LinesData", "words-english-2.txt")).read().splitlines()
+        self.length_dataset = number_of_generated_dataset
 
     def __len__(self):
-        return len(self.words)
+        return self.length_dataset
 
     def __getitem__(self, _):
         phrase = self.generate_one_phrase()
         image = text_to_image(phrase)[1]
         expected = text_to_tensor_and_pad_with_zeros(phrase)
-        
         sample = {"image": torch.from_numpy(image).unsqueeze(0), "expected": expected}
-
         return sample
 
     def generate_one_phrase(self):
-        total_phrase_length = random.randint(1, 93)
+        total_phrase_length = random.choice([24, 26])
         should_space = random.randint(0, 1)
         captilized = random.randint(0, 1)
-
         generated_phrase = self.words[random.randint(0, len(self.words)-1)].capitalize() if captilized else self.words[random.randint(0, len(self.words)-1)]
         generated_phrase_length = len(generated_phrase)
-
         while generated_phrase_length < total_phrase_length:
             random_capitalize = random.randint(0, 2)
             if random_capitalize == 0:
@@ -80,24 +72,21 @@ class GeneratedDataset(Dataset):
                 phrase_element = self.get_one_phrase_element().capitalize()
             else:
                 phrase_element = self.get_one_phrase_element().upper()
-            
             if should_space:
                 generated_phrase += " " + phrase_element
             else:
                 generated_phrase += "" + phrase_element
             generated_phrase_length += len(phrase_element)
-
         return generated_phrase[:total_phrase_length]
 
     def get_one_phrase_element(self):
         element_type = random.randint(1, 100)
-
-        if element_type < 80:
+        if element_type < 20:
             # word
             selected_idx = random.randint(0, len(self.words)-1)
             pulled_phrase = self.words[selected_idx]
             return pulled_phrase
-        elif element_type < 95:
+        elif element_type < 60:
             # number
             return self.generate_random_number_string()
         else:
@@ -108,12 +97,24 @@ class GeneratedDataset(Dataset):
     def generate_random_number_string(self):
         number_length = random.randint(1, 11)
         random_number = random.randint(0, 10**number_length)
-
         if_use_units = random.randint(0, 1)
         include_commas = random.randint(0, 1)
-
         if include_commas:
             return f'{random_number:,}' + UNITS[random.randint(0, len(UNITS)-1)] + " " if if_use_units else ""
         else:
             return  str(random_number) + UNITS[random.randint(0, len(UNITS)-1)] + " " if if_use_units else ""
-        
+
+class MedicalNamesDataset(Dataset):
+    def __init__(self, dataset_folder, txt_file):
+        super().__init__()
+        self.names = open(os.path.join(dataset_folder, txt_file)).read().splitlines()
+
+    def __len__(self):
+        return len(self.names)
+    
+    def __getitem__(self, each):
+        medical_name = self.names[each]
+        medical_name_as_image = text_to_image(medical_name)[1]
+        expected = text_to_tensor_and_pad_with_zeros(medical_name)
+        sample = {"image": torch.from_numpy(medical_name_as_image).unsqueeze(0), "expected": expected}
+        return sample
