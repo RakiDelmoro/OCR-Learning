@@ -56,7 +56,6 @@ def evaluate_model(validation_dataset, model, dataloader_length,
     print("EVALUATING--->>>")
     model.eval()
 
-    pred_and_expected_list = []
     batch_distance_accumulator = []
     running_loss = 0.0
     
@@ -76,8 +75,7 @@ def evaluate_model(validation_dataset, model, dataloader_length,
             batch_distance_and_string = each_batch_distance_and_string(logits, expected_output)
             batch_distance_accumulator.extend(batch_distance_and_string)
             
-            predicted_and_expected = model_and_target_string(logits, expected_output)
-            pred_and_expected_list.append(predicted_and_expected)
+            predicted_and_expected_list = model_prediction_and_expected_to_string(logits, expected_output)
 
             running_loss += loss.item()
             if i >= dataloader_length: break
@@ -111,9 +109,11 @@ def evaluate_model(validation_dataset, model, dataloader_length,
 
     validation_loss = running_loss / dataloader_length
     
-    print(f"{BLUE}Get last item in a batch{CLEAR}")
-    for each in pred_and_expected_list:
-        print(f"Predicted: {each[0]} Target: {each[1]}")
+    print(f"{BLUE}Print out model prediction{CLEAR}")
+    number_to_print = random.randint(10, len(predicted_and_expected_list))
+    for each in range(number_to_print):
+        predicted_and_expected = predicted_and_expected_list[each]
+        print(f"Predicted: {predicted_and_expected[0]} Target: {predicted_and_expected[1]}")
 
     print(f"Percentile 10: {percentile_10}, Percentile 90: {percentile_90}")
     print(f"Average: {S.fmean(list_of_distance)}, Minimum: {min(list_of_distance)}, Maximum: {max(list_of_distance)}")
@@ -183,20 +183,21 @@ def load_checkpoint_for_test(model_checkpoint_folder, model):
 
     return model_state_dict
 
-def model_and_target_string(batched_model_logits, batched_expected):
-    model_pred = batched_model_logits.data
-    highest_idx = model_pred.topk(1)[1].squeeze(-1)
-    model_prediction = highest_idx.cpu().numpy()
+def model_prediction_and_expected_to_string(batched_model_logits, batched_expected):
+    logits_data = batched_model_logits.data
+    high_probability_char = logits_data.topk(1)[1].squeeze(-1)
+    
+    batched_model_prediction = high_probability_char.cpu().numpy()
 
-    batch_iter = batched_model_logits.shape[0]
-
-    for i in range(batch_iter):
-        predicted_sequence = model_prediction[i]
+    model_prediction_and_expected_list = []
+    for i in range(batched_model_logits.shape[0]):
+        predicted_sequence = batched_model_prediction[i]
         expected_sequence = batched_expected[i]
-        model_pred_str, target_str = decode_for_print(predicted_sequence), decode_for_print(expected_sequence)
+        model_prediction_as_string, expected_as_string = decode_for_print(predicted_sequence), decode_for_print(expected_sequence)
 
-        if i == batch_iter-1:
-            return (model_pred_str, target_str)
+        model_prediction_and_expected_list.append((model_prediction_as_string, expected_as_string))
+
+    return model_prediction_and_expected_list
 
 def calculate_distance_with_corresponding_string(model_output, expected):
     model_pred = model_output.data
@@ -251,28 +252,6 @@ def generate_token_prediction(model_input, model, max_length=INFERENCE_PHRASE_LE
 
     return predicted, expected
 
-# def beam_search(image_file, model, max_length=INFERENCE_PHRASE_LENGTH+3):
-#     model.eval()
-#     image_as_array = cv.imread(image_file)
-#     # image_as_array = np.array(image_file)
-#     norm_image = apply_augmentation(image_as_array)
-#     image_input = torch.from_numpy(norm_image).unsqueeze(0).to("cuda")
-
-#     memory = model.encode(image_input.unsqueeze(0))
-#     predicted = torch.tensor([char_to_index[START_TOKEN]], device="cuda", dtype=torch.long).unsqueeze(0)  #torch.ones(1, 1).fill_(char_to_index[START_TOKEN]).type(torch.long).to("cuda")
-#     for _ in range(max_length-1):
-#         start_masked = generate_square_mask(predicted.size(1))
-#         memory_mask = torch.ones((memory.shape[0], memory.shape[1]), device="cuda")
-#         out = model.decode(predicted, memory, start_masked, memory_mask)
-#         prob = torch.nn.functional.softmax(out[:, -1], dim=1)
-#         next_char_predicted = torch.multinomial(prob, 1).squeeze(1)
-#         next_char_predicted = next_char_predicted.item()
-
-#         predicted = torch.cat((predicted, torch.tensor([next_char_predicted], device=DEVICE).unsqueeze(0)), dim=1)
-
-#         if next_char_predicted == char_to_index[END_TOKEN]:
-#             break
-
 def beam_search_for_inference(model_input, model, max_length=INFERENCE_PHRASE_LENGTH+3):
     model.eval()
     image = model_input['image'].unsqueeze(0).to("cuda")
@@ -308,15 +287,55 @@ def beam_search_for_inference(model_input, model, max_length=INFERENCE_PHRASE_LE
     best_sequence, best_score = beam[0]
     return best_sequence, expected
 
+def beam_search_for_inference_previous_version(image, model, max_length=INFERENCE_PHRASE_LENGTH+3):
+    model.eval()
+    image_as_array = cv.imread(image)
+    grey_image = cv.cvtColor(image_as_array, cv.COLOR_BGR2GRAY)
+    image_manipulated = inference_data_processing(grey_image)
+    
+    image = rescale(image_manipulated, INPUT_IMAGE_SIZE)
+
+    norm_image = cv.normalize(image, None, alpha=0, beta=1, norm_type=cv.NORM_MINMAX, dtype=cv.CV_32F)
+    image_input = torch.from_numpy(norm_image).unsqueeze(0).to("cuda")
+    
+    memory = model.encode(image_input.unsqueeze(0))
+    beam = [(torch.tensor([char_to_index[START_TOKEN]], device="cuda", dtype=torch.long).unsqueeze(0), 0)]
+    
+    for _ in range(max_length-1):
+        new_beam = []
+        for tokens, score in beam:
+            if tokens[:, -1] == char_to_index[END_TOKEN]:    
+                new_beam.append((tokens, score))
+                continue
+            
+            start_masked = generate_square_mask(tokens.size(1))
+            memory_mask = torch.ones((memory.shape[0], memory.shape[1]), device="cuda")
+            out = model.decode(tokens, memory, start_masked, memory_mask)
+            prob = torch.nn.functional.softmax(out[:, -1], dim=1)
+            probability, token = torch.topk(prob, 3)
+
+            for i in range(3):
+                next_char_index = token[0][i].item()
+                next_char_probability = probability[0][i].item()
+
+                new_tokens = torch.cat((tokens, torch.tensor([next_char_index], device="cuda").unsqueeze(0)), dim=1)
+                new_score = score + next_char_probability
+                new_beam.append((new_tokens, new_score))
+    
+        new_beam.sort(key=lambda x: x[1], reverse=True)
+        beam = new_beam[:3]
+
+    best_sequence, best_score = beam[0]
+    return best_sequence[0]
 
 def beam_search_for_test(image_file, model, beam_power=3, max_length=INFERENCE_PHRASE_LENGTH+3):
     model.eval()
     batch_size = 2**beam_power
     image_as_array = cv.imread(image_file)
     grey_image = cv.cvtColor(image_as_array, cv.COLOR_BGR2GRAY)
-    rescaled_img = rescale(grey_image, INPUT_IMAGE_SIZE)
-
-    image = inference_data_processing(rescaled_img)
+    image_manipulated = inference_data_processing(grey_image)
+    
+    image = rescale(image_manipulated, INPUT_IMAGE_SIZE)
 
     norm_image = cv.normalize(image, None, alpha=0, beta=1, norm_type=cv.NORM_MINMAX, dtype=cv.CV_32F)
     image_input = torch.from_numpy(norm_image).unsqueeze(0).to("cuda")
