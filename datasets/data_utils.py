@@ -128,6 +128,7 @@ def text_to_image(text):
         image_size = GENERATED_IMAGE_SENTENCE_SIZE
     else:
         image_size = GENERATED_IMAGE_PARAGRAPH_SIZE
+    
     if max_height_and_font != None:
         max_height, font = max_height_and_font
         font_size = font.size
