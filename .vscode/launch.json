@@ -24,6 +24,13 @@
             "request": "launch",
             "program": "./run_test_model.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: Run combine dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "./run_combine_dataset.py",
+            "console": "integratedTerminal"
         }
         
     ]
