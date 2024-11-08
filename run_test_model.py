@@ -10,11 +10,11 @@ from constants import GREEN, CLEAR, RED
 
 with torch.inference_mode():
     model = TransformerOCR().to("cuda")
-    model_checkpoint = "mark-3.tar"
+    model_checkpoint = "mark-0.tar"
     model.load_state_dict(torch.load(os.path.join("ModelCheckpoints2", model_checkpoint))["model_state_dict"])
     # model.load_state_dict(torch.load(os.path.join("BestModel", "checkpoint.tar")))
 
-    predicted = beam_search_for_inference_previous_version("test-img-prep3.png", model)
+    predicted = beam_search_for_inference_previous_version("copy1.png", model)
     # predicted = beam_search_for_test("copy1.png", model, beam_power=5)
     print(f"Model Use: {RED}{model_checkpoint}{CLEAR}")
     print(f"Model Prediction: {GREEN}{decode_for_print(predicted)}{CLEAR}")
