@@ -20,34 +20,22 @@ hybrid_loss = HybridLoss(lambda_val=0.5)
 
 def train_model(train_dataset, model, optimizer, dataloader_length,
                 encoder_trainer):
-    
     model.train()
     print("TRAINING--->>>")
     running_loss = 0.0
-
     loop = tqdm(enumerate(train_dataset), total=dataloader_length, leave=False)
     for i, each in loop:
         image = each['image'].to(DEVICE)
         expected_target = each['expected']
-    
-        if encoder_trainer:
-            decoder_loss, encoder_loss, _, _ = model(image, expected_target)
-        
-        else:
-            decoder_loss, encoder_loss, _, _ = model(image, expected_target)
-
+        if encoder_trainer:decoder_loss, encoder_loss, _, _ = model(image, expected_target)
+        else: decoder_loss, encoder_loss, _, _ = model(image, expected_target)
         loss = hybrid_loss(encoder_loss, decoder_loss)
         optimizer.zero_grad()
         loss.backward()
-        # torch.nn.utils.clip_grad_value_(model.parameters(), 1.0)
         optimizer.step()
-
         running_loss += loss.item()
-
         if i >= dataloader_length: break
-
     training_loss = running_loss / dataloader_length
-
     return training_loss
 
 def evaluate_model(validation_dataset, model, dataloader_length,
