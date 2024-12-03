@@ -96,17 +96,12 @@ def get_latest_save_checkpoint(model_checkpoint_folder, list_of_checkpoint_files
     latest_modified_checkpoint_file = ""
     for each in range(len(list_of_checkpoint_files)):
         checkpoint_file = list_of_checkpoint_files[each]
-
-        if latest_modified_checkpoint_file == "":
-            latest_modified_checkpoint_file += checkpoint_file
-
+        if latest_modified_checkpoint_file == "": latest_modified_checkpoint_file += checkpoint_file
         checkpoint_status = os.path.getmtime(os.path.join(model_checkpoint_folder, checkpoint_file))
         latest_checkpoint_status = os.path.getmtime(os.path.join(model_checkpoint_folder, latest_modified_checkpoint_file))
-
         if checkpoint_status > latest_checkpoint_status:
             latest_modified_checkpoint_file = ""
             latest_modified_checkpoint_file += checkpoint_file
-
     return os.path.join(model_checkpoint_folder, latest_modified_checkpoint_file)
 
 def load_checkpoint(model_checkpoint_folder, model, optimizer):
