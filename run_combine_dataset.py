@@ -20,4 +20,4 @@ validation_dataset_size = len(VALIDATION_DATASET)
 inference_dataset_size = len(INFERENCE_TEST)
 
 main(TRAINING, VALIDATION_DATASET, INFERENCE_TEST,
-     training_dataset_size, validation_dataset_size, inference_dataset_size, True)
+     training_dataset_size, validation_dataset_size, inference_dataset_size, False)
