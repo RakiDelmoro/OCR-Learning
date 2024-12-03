@@ -40,38 +40,26 @@ def train_model(train_dataset, model, optimizer, dataloader_length,
 
 def evaluate_model(validation_dataset, model, dataloader_length,
                    encoder_trainer):
-
     print("EVALUATING--->>>")
     model.eval()
-
     batch_distance_accumulator = []
     running_loss = 0.0
-    
     loop = tqdm(enumerate(validation_dataset), total=dataloader_length, leave=False)
     with torch.no_grad():
         for i, each in loop:
             image = each["image"].to(DEVICE)
             expected_target = each["expected"]
-
-            if encoder_trainer:
-                decoder_loss, encoder_loss, logits, expected_output = model(image, expected_target)
-            
-            else:
-                decoder_loss, encoder_loss, logits, expected_output = model(image, expected_target)
-
+            if encoder_trainer: decoder_loss, encoder_loss, logits, expected_output = model(image, expected_target)
+            else: decoder_loss, encoder_loss, logits, expected_output = model(image, expected_target)
             loss = hybrid_loss(encoder_loss, decoder_loss)
             batch_distance_and_string = each_batch_distance_and_string(logits, expected_output)
             batch_distance_accumulator.extend(batch_distance_and_string)
-            
             predicted_and_expected_list = model_prediction_and_expected_to_string(logits, expected_output)
-
             running_loss += loss.item()
             if i >= dataloader_length: break
-    
     list_of_distance = [distance for each_dict in batch_distance_accumulator for distance in each_dict.keys()]
     highest_distance = sorted(list_of_distance, reverse=True)[:5]
     minimum_distance = sorted(list_of_distance)[:5]
-    
     print(f"{CYAN}Minimum model prediction{CLEAR}")
     for each in batch_distance_accumulator:
         counter = 0
@@ -79,9 +67,7 @@ def evaluate_model(validation_dataset, model, dataloader_length,
         if string_distance in minimum_distance:
             print(f"Predicted: {model_and_expected_str[0]}, Expected: {model_and_expected_str[1]}")
             counter+=1
-        
         if counter >= len(minimum_distance): break
-
     print(f"{CYAN}Maximum model prediction{CLEAR}")
     for each in batch_distance_accumulator:
         counter = 0
@@ -89,23 +75,17 @@ def evaluate_model(validation_dataset, model, dataloader_length,
         if string_distance in highest_distance:
             print(f"Predicted: {model_and_expected_str[0]}, Expected: {model_and_expected_str[1]}")
             counter+=1
-        
         if counter >= len(highest_distance): break
-
     percentile_10 = np.percentile(list_of_distance, 10)
     percentile_90 = np.percentile(list_of_distance, 90)
-
     validation_loss = running_loss / dataloader_length
-    
     print(f"{BLUE}Print out model prediction{CLEAR}")
     number_to_print = random.randint(10, len(predicted_and_expected_list))
     for each in range(number_to_print):
         predicted_and_expected = predicted_and_expected_list[each]
         print(f"Predicted: {predicted_and_expected[0]} Target: {predicted_and_expected[1]}")
-
     print(f"Percentile 10: {percentile_10}, Percentile 90: {percentile_90}")
     print(f"Average: {S.fmean(list_of_distance)}, Minimum: {min(list_of_distance)}, Maximum: {max(list_of_distance)}")
-
     return validation_loss
 
 def save_checkpoint(epoch, model, optimizer, t_loss, v_loss, checkpoint_folder):
