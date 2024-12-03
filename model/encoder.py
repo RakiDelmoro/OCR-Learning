@@ -7,7 +7,6 @@ from model.constant import PAD_TOKEN, CHAR_TO_INDEX
 from model.utils import length_of_actual_tokens
 
 class PositionalEncoding(nn.Module):
-
     def __init__(self, config=EncoderConfig):
         super().__init__()
         self.dropout = nn.Dropout(p=0.1)
@@ -18,7 +17,6 @@ class PositionalEncoding(nn.Module):
         pe[:, 0, 0::2] = torch.sin(position * div_term)
         pe[:, 0, 1::2] = torch.cos(position * div_term)
         self.register_buffer('pe', pe)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Arguments:
@@ -26,7 +24,6 @@ class PositionalEncoding(nn.Module):
         """
         x = x.transpose(0, 1)
         x = x + self.pe[:x.size(0)]
-        
         return self.dropout(x).transpose(0, 1)
 
 class CnnFeatureExtractor(nn.Module):
@@ -179,9 +176,9 @@ class Encoder(nn.Module):
     def forward(self, image: torch.Tensor, target=None):
         hidden_states = self.embeddings(image)
         for layer_module in self.encoder_layer:
-            layer_outputs = layer_module(hidden_states)
-        encoder_hidden_state = self.positional_encoding_for_decoder(self.decoder_embedding(layer_outputs))
-        prediction_score = self.activation_function(self.character_alignment(layer_outputs))
+            hidden_states = layer_module(hidden_states)
+        encoder_hidden_state = self.positional_encoding_for_decoder(self.decoder_embedding(hidden_states))
+        prediction_score = self.activation_function(self.character_alignment(hidden_states))
         training_mode = target is not None
         if training_mode:
             transpose_for_loss = prediction_score.transpose(0, 1)
