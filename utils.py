@@ -89,14 +89,7 @@ def evaluate_model(validation_dataset, model, dataloader_length,
     return validation_loss
 
 def save_checkpoint(epoch, model, optimizer, t_loss, v_loss, checkpoint_folder):
-    checkpoint = {
-        "epoch": epoch,
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-        "train_loss": t_loss,
-        "val_loss": v_loss
-    }
-
+    checkpoint = {"epoch": epoch, "model_state_dict": model.state_dict(), "optimizer_state_dict": optimizer.state_dict(), "train_loss": t_loss, "val_loss": v_loss}
     torch.save(checkpoint, f"./{checkpoint_folder}/mark-{epoch%5}.tar")
 
 def get_latest_save_checkpoint(model_checkpoint_folder, list_of_checkpoint_files): 
