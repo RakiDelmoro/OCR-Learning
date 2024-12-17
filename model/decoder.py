@@ -9,11 +9,9 @@ def create_position_ids_from_input_ids(input_ids: torch.Tensor, padding_idx, pas
     return incremental_indices.long() + padding_idx
 
 class PositionalEncoding(nn.Module):
-
     def __init__(self, config=DecoderConfig):
         super().__init__()
         self.dropout = nn.Dropout(p=config.dec_dropout)
-
         position = torch.arange(config.max_sequence_length).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, config.embedding_dimension, 2) * (-math.log(10000.0) / config.embedding_dimension))
         pe = torch.zeros(config.max_sequence_length, 1, config.embedding_dimension)
@@ -22,13 +20,9 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Arguments:
-            x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
-        """
+        """ Arguments: x: Tensor, shape ``[seq_len, batch_size, embedding_dim]`` """
         x = x.transpose(0, 1)
         x = x + self.pe[:x.size(0)]
-        
         return self.dropout(x).transpose(0, 1)
 
 class CharacterEmbeddings(nn.Module):
@@ -40,8 +34,7 @@ class CharacterEmbeddings(nn.Module):
 
         self.padding_idx = config.pad_token_id
         self.position_embeddings = nn.Embedding(
-            config.max_sequence_length, config.embedding_dimension, padding_idx=self.padding_idx
-        )
+            config.max_sequence_length, config.embedding_dimension, padding_idx=self.padding_idx)
     def forward(self, input_ids):
         character_embedding = self.character_embeddings(input_ids)
         position_ids = create_position_ids_from_input_ids(input_ids, self.padding_idx)
@@ -125,13 +118,11 @@ class AttentionMechanism(nn.Module):
 class FeedForward(nn.Module):
     def __init__(self, config=DecoderConfig):
         super().__init__()
-
         self.ff_neural_network = nn.Sequential(
             nn.Linear(config.embedding_dimension, config.intermediate_size),
             nn.GELU(),
             nn.Linear(config.intermediate_size, config.embedding_dimension),
-            nn.Dropout(config.dec_dropout)
-        )
+            nn.Dropout(config.dec_dropout))
 
     def forward(self, hidden_states: torch.Tensor):
         return self.ff_neural_network(hidden_states)
@@ -150,38 +141,38 @@ class Layer(nn.Module):
         self_attention_output = self.self_attention(self.layer_norm(hidden_states), None, decoder_mask) # Encoder hidden state set to None because it's self attention.
         first_residual_hidden_state = self_attention_output + hidden_states
         self_attention_output = self.layer_norm(first_residual_hidden_state)
-
         # Cross attention
         cross_attention = self.cross_attention(self_attention_output, encoder_hidden_state, encoder_mask)
         second_residual_hidden_state = cross_attention + self_attention_output
         cross_attention_output = self.layer_norm(second_residual_hidden_state)
-    
         # Feed Forward
         feed_forward_output = self.ff_layer(cross_attention_output)
         third_residual_connection = feed_forward_output + cross_attention_output
         feed_forward_output = self.layer_norm(third_residual_connection)
-
         return feed_forward_output
     
+class DecoderLayer(nn.Module):
+    def __init__(self, config=DecoderConfig):
+        super().__init__()
+        self.layer = Layer()
+        self.decoder_layer = nn.ModuleList([self.layer for _ in range(config.num_decoder_layers)])
+
+    def forward(self, input_embeddings):
+        layer_output = input_embeddings
+        for each in self.decoder_layers:
+            layer_output = each(layer_output)
+        return layer_output
+
 class Decoder(nn.Module):
     def __init__(self, config=DecoderConfig):
         super().__init__()
         self.config = config
         self.embeddings = CharacterEmbeddings()
-        self.layer = Layer()
-
-        self.encoder_layer = nn.ModuleList([self.layer for _ in range(config.num_decoder_layers)])
+        self.decoder_layers = DecoderLayer()
         self.dense = nn.Linear(config.embedding_dimension, config.vocab_size)
 
     def forward(self, target, encoder_hidden_state, decoder_mask, encoder_mask):
         hidden_states = self.embeddings(target)
-        
-        for layer_module in self.encoder_layer:
+        for layer_module in self.decoder_layers:
             layer_outputs = layer_module(hidden_states, encoder_hidden_state, decoder_mask, encoder_mask)
-        
         return self.dense(layer_outputs)
-
-# model = Decoder()
-
-# output = model(input_data, hidden_state, attn_mask, encoder_mask)
-# print(output.shape)
