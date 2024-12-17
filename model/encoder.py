@@ -18,10 +18,7 @@ class PositionalEncoding(nn.Module):
         pe[:, 0, 1::2] = torch.cos(position * div_term)
         self.register_buffer('pe', pe)
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Arguments:
-            x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
-        """
+        """ Arguments: x: Tensor, shape [seq_len, batch_size, embedding_dim] """
         x = x.transpose(0, 1)
         x = x + self.pe[:x.size(0)]
         return self.dropout(x).transpose(0, 1)
@@ -62,8 +59,7 @@ class CnnFeatureExtractor(nn.Module):
             nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(7, 7), stride=1),
             nn.LeakyReLU(),
             nn.LayerNorm((128, self.conv5_image_h, self.conv5_image_w)),
-            nn.Dropout(p=0.2)
-        )
+            nn.Dropout(p=0.2))
         self.dense_layer = nn.Linear(768, config.embedding_dimension)
         self.position_embeddings = nn.Parameter(torch.zeros(1, 118, config.embedding_dimension))
     def forward(self, x):
@@ -79,8 +75,8 @@ class CnnFeatureExtractor(nn.Module):
         dense_layer = self.dense_layer(collapse_layer)
         pos_encoding = dense_layer + self.position_embeddings
         return pos_encoding
-    
-class SelfAttention(nn.Module):
+
+class MultiHeadAttention(nn.Module):
     def __init__(self, config=EncoderConfig):
         super().__init__()
         self.num_heads = config.num_attention_heads
@@ -89,13 +85,16 @@ class SelfAttention(nn.Module):
         self.query = nn.Linear(config.embedding_dimension, self.combine_embedding_size)
         self.key = nn.Linear(config.embedding_dimension, self.combine_embedding_size)
         self.value = nn.Linear(config.embedding_dimension, self.combine_embedding_size)
+        self.attention_output = nn.Linear(config.embedding_dimension, config.embedding_dimension)
         self.dropout = nn.Dropout(config.encoder_dropout)
+
     def transpose_for_attn_scores(self, x: torch.Tensor) -> torch.Tensor:
         # batch | patches | attn_heads | attention_dimension
         new_x_shape = x.shape[:-1] + (self.num_heads, self.atttention_embedding_dim)
         x = x.view(new_x_shape)
         # batch | attn_heads | patches | attention_dimension
         return x.permute(0, 2, 1, 3)
+
     def forward(self, hidden_states: torch.Tensor):
         query_layer = self.transpose_for_attn_scores(self.query(hidden_states))
         key_layer = self.transpose_for_attn_scores(self.key(hidden_states))
@@ -110,29 +109,10 @@ class SelfAttention(nn.Module):
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.shape[:-2] + (self.combine_embedding_size,)
         context_layer = context_layer.view(new_context_layer_shape)
-        return context_layer
-
-class SelfAttetionOutput(nn.Module):
-    def __init__(self, config=EncoderConfig):
-        super().__init__()
-        self.dense = nn.Linear(config.embedding_dimension, config.embedding_dimension)
-        self.dropout = nn.Dropout(config.encoder_dropout)
-    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        return hidden_states
-
-class MultiHeadAttention(nn.Module):
-    def __init__(self, config=EncoderConfig):
-        super().__init__()
-        self.attention = SelfAttention(config)
-        self.output = SelfAttetionOutput(config)
-    def forward(self, hidden_states: torch.Tensor):
-        self_attention = self.attention(hidden_states)
-        attention_output = self.output(self_attention)
+        attention_output = self.attention_output(context_layer)
         return attention_output
 
-class FeedForward(nn.Module):
+class MultiLayerPerceptron(nn.Module):
     def __init__(self, config=EncoderConfig):
         super().__init__()
         self.ff_neural_network = nn.Sequential(
@@ -147,7 +127,7 @@ class Layer(nn.Module):
     def __init__(self, config=EncoderConfig):
         super().__init__()
         self.attention = MultiHeadAttention(config)
-        self.ff_layer = FeedForward(config)
+        self.ff_layer = MultiLayerPerceptron(config)
         self.layer_norm_before = nn.LayerNorm(config.embedding_dimension)
         self.layer_norm_after = nn.LayerNorm(config.embedding_dimension)
     def forward(self, hidden_states: torch.Tensor):
@@ -161,34 +141,47 @@ class Layer(nn.Module):
         # second residual connection
         feed_forward_with_residual_connection = feed_forward_output + attention_output
         return feed_forward_with_residual_connection
-    
+
+class EncoderLayer(nn.Module):
+    def __init__(self, config=EncoderConfig):
+        super().__init__()
+        self.layer = Layer()
+        self.num_encoder_layers = config.num_encoder_layers
+        self.encoder_layers = nn.ModuleList([self.layer for _ in range(self.num_encoder_layers)])
+
+    def forward(self, input_embeddings):
+        layer_output = input_embeddings
+        for each in self.encoder_layers:
+            layer_output = each(layer_output)
+        return layer_output
+
 class Encoder(nn.Module):
     def __init__(self, config=EncoderConfig):
         super().__init__()
         self.config = config
         self.embeddings = CnnFeatureExtractor()
-        self.layer = Layer()
+        self.encoder_layer = EncoderLayer()
         self.decoder_embedding = nn.Linear(config.embedding_dimension, DecoderConfig.embedding_dimension)
-        self.positional_encoding_for_decoder = PositionalEncoding(DecoderConfig)
-        self.encoder_layer = nn.ModuleList([self.layer for _ in range(config.num_encoder_layers)])
+        self.positional_embedding_to_decoder = PositionalEncoding(DecoderConfig)
         self.character_alignment = nn.Linear(config.embedding_dimension, config.num_classes)
         self.activation_function = nn.LogSoftmax(dim=-1)
+
     def forward(self, image: torch.Tensor, target=None):
         hidden_states = self.embeddings(image)
-        for layer_module in self.encoder_layer:
-            hidden_states = layer_module(hidden_states)
-        encoder_hidden_state = self.positional_encoding_for_decoder(self.decoder_embedding(hidden_states))
-        prediction_score = self.activation_function(self.character_alignment(hidden_states))
+        encoder_output = self.encoder_layer(hidden_states)
+        encoder_output_activations = self.positional_embedding_to_decoder(self.decoder_embedding(encoder_output))
+        encoder_prediction = self.activation_function(self.character_alignment(hidden_states))
         training_mode = target is not None
         if training_mode:
-            transpose_for_loss = prediction_score.transpose(0, 1)
-            length, batch, _ = transpose_for_loss.shape
+            # patches | batch | network feature size
+            encoder_prediction_transposed = encoder_prediction.transpose(0, 1)
+            length, batch, _ = encoder_prediction_transposed.shape
             image_patches_length = torch.full(size=(batch,), fill_value=length, dtype=torch.long)
             target_length = torch.zeros(size=(batch,), dtype=torch.long)
             actual_tokens_length = length_of_actual_tokens(target)
             for each in range(batch): target_length[each] = actual_tokens_length[each]
             loss_func = nn.CTCLoss(blank=CHAR_TO_INDEX[PAD_TOKEN])
-            loss = loss_func(transpose_for_loss, target, image_patches_length, target_length)
-            return encoder_hidden_state, loss            
+            loss = loss_func(encoder_prediction_transposed, target, image_patches_length, target_length)
+            return encoder_output_activations, loss            
         else:
-            return encoder_hidden_state
+            return encoder_output_activations
