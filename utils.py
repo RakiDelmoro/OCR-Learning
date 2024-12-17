@@ -18,8 +18,7 @@ PAD_TOKEN = '\N{Substitute}'
 
 hybrid_loss = HybridLoss(lambda_val=0.5)
 
-def train_model(train_dataset, model, optimizer, dataloader_length,
-                encoder_trainer):
+def train_model(train_dataset, model, optimizer, dataloader_length, encoder_trainer):
     model.train()
     print("TRAINING--->>>")
     running_loss = 0.0
@@ -27,7 +26,7 @@ def train_model(train_dataset, model, optimizer, dataloader_length,
     for i, each in loop:
         image = each['image'].to(DEVICE)
         expected_target = each['expected']
-        if encoder_trainer:decoder_loss, encoder_loss, _, _ = model(image, expected_target)
+        if encoder_trainer: decoder_loss, encoder_loss, _, _ = model(image, expected_target)
         else: decoder_loss, encoder_loss, _, _ = model(image, expected_target)
         loss = hybrid_loss(encoder_loss, decoder_loss)
         optimizer.zero_grad()
@@ -38,10 +37,9 @@ def train_model(train_dataset, model, optimizer, dataloader_length,
     training_loss = running_loss / dataloader_length
     return training_loss
 
-def evaluate_model(validation_dataset, model, dataloader_length,
-                   encoder_trainer):
-    print("EVALUATING--->>>")
+def evaluate_model(validation_dataset, model, dataloader_length, encoder_trainer):
     model.eval()
+    print("EVALUATING--->>>")
     batch_distance_accumulator = []
     running_loss = 0.0
     loop = tqdm(enumerate(validation_dataset), total=dataloader_length, leave=False)
@@ -142,9 +140,7 @@ def load_checkpoint_for_test(model_checkpoint_folder, model):
 def model_prediction_and_expected_to_string(batched_model_logits, batched_expected):
     logits_data = batched_model_logits.data
     high_probability_char = logits_data.topk(1)[1].squeeze(-1)
-    
     batched_model_prediction = high_probability_char.cpu().numpy()
-
     model_prediction_and_expected_list = []
     for i in range(batched_model_logits.shape[0]):
         predicted_sequence = batched_model_prediction[i]
@@ -248,12 +244,9 @@ def beam_search_for_inference_previous_version(image, model, max_length=INFERENC
     image_as_array = cv.imread(image)
     grey_image = cv.cvtColor(image_as_array, cv.COLOR_BGR2GRAY)
     image_manipulated = inference_data_processing(grey_image)
-    
     image = rescale(image_manipulated, INPUT_IMAGE_SIZE)
-
     norm_image = cv.normalize(image, None, alpha=0, beta=1, norm_type=cv.NORM_MINMAX, dtype=cv.CV_32F)
     image_input = torch.from_numpy(norm_image).unsqueeze(0).to("cuda")
-    
     memory = model.encode(image_input.unsqueeze(0))
     beam = [(torch.tensor([char_to_index[START_TOKEN]], device="cuda", dtype=torch.long).unsqueeze(0), 0)]
     
@@ -263,24 +256,19 @@ def beam_search_for_inference_previous_version(image, model, max_length=INFERENC
             if tokens[:, -1] == char_to_index[END_TOKEN]:    
                 new_beam.append((tokens, score))
                 continue
-            
             start_masked = generate_square_mask(tokens.size(1))
             memory_mask = torch.ones((memory.shape[0], memory.shape[1]), device="cuda")
             out = model.decode(tokens, memory, start_masked, memory_mask)
             prob = torch.nn.functional.softmax(out[:, -1], dim=1)
             probability, token = torch.topk(prob, 3)
-
             for i in range(3):
                 next_char_index = token[0][i].item()
                 next_char_probability = probability[0][i].item()
-
                 new_tokens = torch.cat((tokens, torch.tensor([next_char_index], device="cuda").unsqueeze(0)), dim=1)
                 new_score = score + next_char_probability
                 new_beam.append((new_tokens, new_score))
-    
         new_beam.sort(key=lambda x: x[1], reverse=True)
         beam = new_beam[:3]
-
     best_sequence, best_score = beam[0]
     return best_sequence[0]
 
@@ -290,35 +278,24 @@ def beam_search_for_test(image_file, model, beam_power=3, max_length=INFERENCE_P
     image_as_array = cv.imread(image_file)
     grey_image = cv.cvtColor(image_as_array, cv.COLOR_BGR2GRAY)
     image_manipulated = inference_data_processing(grey_image)
-    
     image = rescale(image_manipulated, INPUT_IMAGE_SIZE)
-
     norm_image = cv.normalize(image, None, alpha=0, beta=1, norm_type=cv.NORM_MINMAX, dtype=cv.CV_32F)
     image_input = torch.from_numpy(norm_image).unsqueeze(0).to("cuda")
-    
     memory = model.encode(image_input.repeat(batch_size, 1, 1, 1))
     next_input = torch.tensor([char_to_index[START_TOKEN]], device="cuda", dtype=torch.long).repeat(batch_size, 1)
-    
     for i in range(1, max_length):
         start_masked = generate_square_mask(i)
         memory_mask = torch.ones((memory.shape[0], memory.shape[1]), device="cuda")
         model_output = model.decode(next_input, memory, start_masked, memory_mask)
         normalized_output = torch.nn.functional.softmax(model_output, dim=-1)
-        
         average_one_hots = torch.mean(normalized_output, 0, False)
         highest_predicted_character_for_each_position = torch.topk(average_one_hots, 1)
-        
         worst_characters_index = torch.topk(highest_predicted_character_for_each_position.values.squeeze(-1), min(i, beam_power), largest=False).indices
         next_input = highest_predicted_character_for_each_position.indices.squeeze(-1)
-        
         for j in range(0, beam_power):
             next_input = next_input.repeat(2, 1)
             character_position_to_change = worst_characters_index[min(j, worst_characters_index.shape[0]-1)]
             top_two_of_character = torch.topk(average_one_hots[character_position_to_change], 2)
-            
-            for k in range(0, next_input.shape[0]//2):
-                next_input[k][character_position_to_change] = top_two_of_character.indices[1]
-
+            for k in range(0, next_input.shape[0]//2): next_input[k][character_position_to_change] = top_two_of_character.indices[1]
         next_input = torch.cat((torch.tensor([[2]], device="cuda").repeat(next_input.shape[0], 1), next_input), 1)
-
     return next_input[0]
