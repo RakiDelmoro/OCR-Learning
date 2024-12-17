@@ -12,8 +12,7 @@ class FileTextLineDataset(Dataset):
     def __init__(self, dataset_file, txt_file):
         super().__init__()
         self.dataset_folder = dataset_file
-        self.txt_file = txt_file
-        
+        self.txt_file = txt_file  
         lines = open(os.path.join(self.dataset_folder, self.txt_file)).read().splitlines()
         dataset_dict = list()
         for line in lines:
@@ -25,7 +24,6 @@ class FileTextLineDataset(Dataset):
                 sentence = " ".join(split_line[8::]).replace("|", " ")
                 dataset_dict.append({image_path: sentence})
         self.dataset = dataset_dict
-
     def __len__(self):
         return len(self.dataset)
 
