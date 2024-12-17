@@ -11,7 +11,6 @@ class StreamDataset(IterableDataset):
     
     def generate(self):
         while True:
-            
             if self.encoder_trainer:
                 text = generate_random_characters(length_of_char=self.phrase_length)
                 target = label_to_tensor(text)
