@@ -7,6 +7,5 @@ def length_of_actual_tokens(batch):
 
 def generate_square_mask(size):
     mask = (torch.triu(torch.ones((size, size), device=DEVICE)) == 1).transpose(1, 0)
-    mask = mask.float().masked_fill(mask == 0, float("-inf")
-                                     ).masked_fill(mask == 1, float(0.0)).to(DEVICE)
+    mask = mask.float().masked_fill(mask == 0, float("-inf")).masked_fill(mask == 1, float(0.0)).to(DEVICE)
     return mask
