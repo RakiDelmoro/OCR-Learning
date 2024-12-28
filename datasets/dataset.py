@@ -1,14 +1,13 @@
-import numpy as np
-import random
 import os
 import torch
+import random
 import cv2 as cv
-from torch.utils.data import Dataset, IterableDataset, ChainDataset, DataLoader
-from datasets.data_utils import text_to_tensor_and_pad_with_zeros, text_to_image, image_processing_for_generated_data, image_processing_for_real_data
-from datasets.constants import MAX_PHRASE_LENGTH, SYMBOLS
 from iterable_dataset import UNITS
+from torch.utils.data import Dataset
+from datasets.constants import MAX_PHRASE_LENGTH, SYMBOLS
+from datasets.data_utils import text_to_tensor_and_pad_with_zeros, text_to_image, image_processing_for_real_data
 
-class FileTextLineDataset(Dataset):
+class RealTextLineDataset(Dataset):
     def __init__(self, dataset_file, txt_file):
         super().__init__()
         self.dataset_folder = dataset_file
@@ -16,14 +15,14 @@ class FileTextLineDataset(Dataset):
         lines = open(os.path.join(self.dataset_folder, self.txt_file)).read().splitlines()
         dataset_dict = list()
         for line in lines:
-            if line[0] == "#":
-                continue
+            if line[0] == "#": continue
             split_line = line.split()
             if split_line[1] == "ok":
                 image_path = split_line[0] + ".png"
                 sentence = " ".join(split_line[8::]).replace("|", " ")
                 dataset_dict.append({image_path: sentence})
         self.dataset = dataset_dict
+
     def __len__(self):
         return len(self.dataset)
 
@@ -64,43 +63,33 @@ class GeneratedDataset(Dataset):
         generated_phrase_length = len(generated_phrase)
         while generated_phrase_length < total_phrase_length:
             random_capitalize = random.randint(0, 2)
-            if random_capitalize == 0:
-                phrase_element = self.get_one_phrase_element()
-            elif random_capitalize == 1:
-                phrase_element = self.get_one_phrase_element().capitalize()
-            else:
-                phrase_element = self.get_one_phrase_element().upper()
-            if should_space:
-                generated_phrase += " " + phrase_element
-            else:
-                generated_phrase += "" + phrase_element
+            if random_capitalize == 0: phrase_element = self.get_one_phrase_element()
+            elif random_capitalize == 1: phrase_element = self.get_one_phrase_element().capitalize()
+            else: phrase_element = self.get_one_phrase_element().upper()
+            if should_space: generated_phrase += " " + phrase_element
+            else: generated_phrase += "" + phrase_element
             generated_phrase_length += len(phrase_element)
         return generated_phrase[:total_phrase_length]
 
     def get_one_phrase_element(self):
         element_type = random.randint(1, 100)
         if element_type < 20:
-            # word
-            selected_idx = random.randint(0, len(self.words)-1)
-            pulled_phrase = self.words[selected_idx]
+            selected_idx = random.randint(0, len(self.words)-1)             
+            pulled_phrase = self.words[selected_idx] # Fetch Word
             return pulled_phrase
         elif element_type < 60:
-            # number
-            return self.generate_random_number_string()
+            return self.generate_random_number_string() # Fetch Number
         else:
-            # symbol
             selected_idx = random.randint(0, len(SYMBOLS)-1)
-            return SYMBOLS[selected_idx]
-        
+            return SYMBOLS[selected_idx] # Fetch symbol
+
     def generate_random_number_string(self):
         number_length = random.randint(1, 11)
         random_number = random.randint(0, 10**number_length)
         if_use_units = random.randint(0, 1)
         include_commas = random.randint(0, 1)
-        if include_commas:
-            return f'{random_number:,}' + UNITS[random.randint(0, len(UNITS)-1)] + " " if if_use_units else ""
-        else:
-            return  str(random_number) + UNITS[random.randint(0, len(UNITS)-1)] + " " if if_use_units else ""
+        if include_commas: return f'{random_number:,}' + UNITS[random.randint(0, len(UNITS)-1)] + " " if if_use_units else ""
+        else: return  str(random_number) + UNITS[random.randint(0, len(UNITS)-1)] + " " if if_use_units else ""
 
 class MedicalNamesDataset(Dataset):
     def __init__(self, dataset_folder, txt_file):
@@ -109,7 +98,7 @@ class MedicalNamesDataset(Dataset):
 
     def __len__(self):
         return len(self.names)
-    
+
     def __getitem__(self, each):
         medical_name = self.names[each]
         medical_name_as_image = text_to_image(medical_name)[1]
