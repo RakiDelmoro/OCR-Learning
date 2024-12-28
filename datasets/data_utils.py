@@ -46,7 +46,8 @@ def inference_data_processing(image_arr):
     image_arr[light_condition] = 255
     image_arr[dark_condition] = 0
     image = cv.dilate(image_arr, np.ones((2,2), np.uint8), iterations=1)
-    return cv.bitwise_not(image)
+    normalized_image = cv.normalize(cv.bitwise_not(image), None, -1, 1, cv.NORM_MINMAX, cv.CV_32F)
+    return normalized_image
 
 def image_processing_for_generated_data(image_as_array):
     image_gray = cv.cvtColor(image_as_array, cv.COLOR_RGB2GRAY)
@@ -58,7 +59,7 @@ def image_processing_for_generated_data(image_as_array):
     rotate_img = cv.warpAffine(rescaled_img, rotate_matrix, (rescaled_img.shape[1], rescaled_img.shape[0]), borderValue=int(rgb))
     kernel = np.ones((2,2), np.uint8)
     opening = cv.morphologyEx(rotate_img, cv.MORPH_OPEN, kernel)
-    normalized_image = cv.normalize(rotate_img, None, 0, 1, cv.NORM_MINMAX, cv.CV_32F)
+    normalized_image = cv.normalize(rotate_img, None, -1, 1, cv.NORM_MINMAX, cv.CV_32F)
 
     return normalized_image
 
@@ -72,7 +73,7 @@ def image_processing_for_real_data(image_as_array):
     rotate_matrix = cv.getRotationMatrix2D(center, angle, 1.0)
     rotate_img = cv.warpAffine(rescaled_img, rotate_matrix, (rescaled_img.shape[1], rescaled_img.shape[0]), borderValue=int(rgb))
     inverted_img = cv.bitwise_not(rotate_img)
-    normalized_image = cv.normalize(inverted_img, None, 0, 1, cv.NORM_MINMAX, cv.CV_32F)
+    normalized_image = cv.normalize(inverted_img, None, -1, 1, cv.NORM_MINMAX, cv.CV_32F)
     return normalized_image
 
 def apply_augmentation_for_inference(image_as_array):
@@ -122,12 +123,9 @@ def text_to_image(text):
     max_height_and_font = max_height_by_font_cache.get(font_name)
     background = 0
     text_color = 255, 255, 255
-    if len(text) < 15:
-        image_size = GENERATED_IMAGE_WORD_SIZE
-    elif len(text) < 60:
-        image_size = GENERATED_IMAGE_SENTENCE_SIZE
-    else:
-        image_size = GENERATED_IMAGE_PARAGRAPH_SIZE
+    if len(text) < 15: image_size = GENERATED_IMAGE_WORD_SIZE
+    elif len(text) < 60: image_size = GENERATED_IMAGE_SENTENCE_SIZE
+    else: image_size = GENERATED_IMAGE_PARAGRAPH_SIZE
     
     if max_height_and_font != None:
         max_height, font = max_height_and_font
