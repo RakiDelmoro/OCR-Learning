@@ -1,5 +1,7 @@
 import torch
 import string
+from model.model import TransformerOCR
+
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 IMAGE_SIZE = (64, 768)
@@ -7,6 +9,10 @@ IMAGE_SIZE = (64, 768)
 NUM_EPOCHS = 100000000
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
+
+# File where to save model checkpoint and fully trained
+MODEL_CHECKPOINT_FOLDER = "ModelCheckpoints2"
+FULL_TRAINED_MODEL = "model.pth"
 
 START_TOKEN = '\N{Start of Text}'
 END_TOKEN = '\N{End of Text}'
