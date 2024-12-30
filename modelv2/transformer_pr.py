@@ -9,3 +9,51 @@ import torch.nn as nn
     Rule 3: Prevent Overfitting!
     Rule 4: Training with mixed dataset (Real data, Generated data, Medical words)
 """
+
+class PositionalEncoding(nn.Module):
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def forward(self, x):
+        pass
+
+class InputEmbeddings(nn.Module):
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def forward(self, x):
+        pass
+
+class AttentionLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def forward(self, x):
+        pass
+
+class EncoderMLPLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def forward(self, x):
+        pass
+
+class EncoderLayer():
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def forward(self, x):
+        pass
+
+class MLPLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def forward(self, x):
+        pass
