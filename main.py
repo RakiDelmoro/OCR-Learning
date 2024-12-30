@@ -2,9 +2,9 @@ import os
 import torch
 import math
 from torch.utils.data import DataLoader
-from datasets.data_utils import decode_for_print, collate_function
+from datasets.data_utils import decode_for_print
 from constants_v1 import BATCH_SIZE, NUM_EPOCHS, RED, CLEAR, GREEN, WHITE_UNDERLINE, MODEL_CHECKPOINT_FOLDER, FULL_TRAINED_MODEL
-from utils import train_model, evaluate_model, save_checkpoint, beam_search_for_inference_previous_version, check_model_checkpoint_availability
+from utils import train_model, evaluate_model, save_checkpoint, beam_search_for_inference_previous_version, check_model_checkpoint_availability, save_best_model
 
 def runner(model, optimizer, scheduler, training_dataset, validation_dataset, inference_iterable, training_data_length, validation_data_length, inference_data_length, use_checkpoint):
     training_loader = DataLoader(dataset=training_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True, pin_memory=True)
@@ -28,11 +28,8 @@ def runner(model, optimizer, scheduler, training_dataset, validation_dataset, in
                 print(f"Predicted: {decode_for_print(predicted)}")
         current_validation_loss = 0.0
         if use_checkpoint:
-            if val_loss < current_validation_loss:
-                checkpoint_file = f"./BestModel/checkpoint.tar"
-                current_validation_loss = val_loss
-                torch.save(model.state_dict(), checkpoint_file)
-                print(f"New Best model Save! {GREEN}{checkpoint_file}{CLEAR}")
+            if val_loss < current_validation_loss: current_validation_loss = save_best_model(model, val_loss)
+
             print(f"{RED}Saving do not turn off!{CLEAR}")
             save_checkpoint(epoch=epoch, model=model, optimizer=optimizer, t_loss=train_loss, v_loss=val_loss, checkpoint_folder=MODEL_CHECKPOINT_FOLDER)
             print(f"{GREEN}Done saving!{CLEAR}")
