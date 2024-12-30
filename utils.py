@@ -19,6 +19,7 @@ def check_model_checkpoint_availability():
             loaded_epoch, t_loss, v_loss, checkpoint = load_checkpoint(model_checkpoint_folder=MODEL_CHECKPOINT_FOLDER, model=MODEL, optimizer=OPTIMIZER)
             print(f"{WHITE_UNDERLINE}loaded checkpoint file from {checkpoint} have EPOCH: {loaded_epoch} with a training loss: {t_loss}, Validation loss: {v_loss}{CLEAR}")
             start_epoch = loaded_epoch + 1
+    return start_epoch
 
 def train_model(train_dataset, model, optimizer, dataloader_length, encoder_trainer):
     model.train()
