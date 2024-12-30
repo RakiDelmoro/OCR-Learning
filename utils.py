@@ -7,16 +7,24 @@ import statistics as S
 import random
 from tqdm import tqdm
 from datasets.data_utils import decode_for_print, char_to_index, inference_data_processing, rescale, INPUT_IMAGE_SIZE
-from constants_v1 import DEVICE, START_TOKEN, END_TOKEN, INFERENCE_PHRASE_LENGTH, BLUE, CYAN, CLEAR, MODEL_CHECKPOINT_FOLDER, WHITE_UNDERLINE, MODEL, OPTIMIZER
+from constants_v1 import DEVICE, START_TOKEN, END_TOKEN, INFERENCE_PHRASE_LENGTH, BLUE, CYAN, CLEAR, MODEL_CHECKPOINT_FOLDER, WHITE_UNDERLINE, GREEN
 from model.model import HybridLoss
 hybrid_loss = HybridLoss(lambda_val=0.5)
 
-def check_model_checkpoint_availability():
+
+def save_best_model(model, val_loss):
+    checkpoint_file = f"./BestModel/checkpoint.tar"
+    current_validation_loss = val_loss
+    torch.save(model.state_dict(), checkpoint_file)
+    print(f"New Best model Save! {GREEN}{checkpoint_file}{CLEAR}")
+    return current_validation_loss
+
+def check_model_checkpoint_availability(model, optimizer):
     if os.path.exists(MODEL_CHECKPOINT_FOLDER):
         list_of_checkpoints = os.listdir(MODEL_CHECKPOINT_FOLDER)
         if len(list_of_checkpoints) == 0: print(f"No checkpoint file yet.")
         else:
-            loaded_epoch, t_loss, v_loss, checkpoint = load_checkpoint(model_checkpoint_folder=MODEL_CHECKPOINT_FOLDER, model=MODEL, optimizer=OPTIMIZER)
+            loaded_epoch, t_loss, v_loss, checkpoint = load_checkpoint(model_checkpoint_folder=MODEL_CHECKPOINT_FOLDER, model=model, optimizer=optimizer)
             print(f"{WHITE_UNDERLINE}loaded checkpoint file from {checkpoint} have EPOCH: {loaded_epoch} with a training loss: {t_loss}, Validation loss: {v_loss}{CLEAR}")
             start_epoch = loaded_epoch + 1
     return start_epoch
