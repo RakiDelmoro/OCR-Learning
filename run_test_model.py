@@ -6,7 +6,7 @@ from utils import decode_for_print
 from model.model import TransformerOCR
 from datasets.data_utils import text_to_image
 from utils import load_checkpoint_for_test, get_latest_save_checkpoint, beam_search_for_test, beam_search_for_inference_previous_version
-from constants import GREEN, CLEAR, RED
+from constants_v1 import GREEN, CLEAR, RED
 
 with torch.inference_mode():
     model = TransformerOCR().to("cuda")
