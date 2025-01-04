@@ -22,4 +22,4 @@ training_dataset_size = len(CONCATENATED_TRAINING_DATASET)
 validation_dataset_size = len(VALIDATION_DATASET)
 inference_dataset_size = len(INFERENCE_TEST)
 
-runner(MODEL, OPTIMIZER, SHCEDULER, CONCATENATED_TRAINING_DATASET, VALIDATION_DATASET, INFERENCE_TEST, training_dataset_size, validation_dataset_size, inference_dataset_size, False)
+runner(MODEL, OPTIMIZER, SHCEDULER, CONCATENATED_TRAINING_DATASET, VALIDATION_DATASET, INFERENCE_TEST, training_dataset_size, validation_dataset_size, inference_dataset_size, True)
