@@ -145,9 +145,8 @@ class Layer(nn.Module):
 class EncoderLayer(nn.Module):
     def __init__(self, config=EncoderConfig):
         super().__init__()
-        self.layer = Layer()
         self.num_encoder_layers = config.num_encoder_layers
-        self.encoder_layers = nn.ModuleList([self.layer for _ in range(self.num_encoder_layers)])
+        self.encoder_layers = nn.ModuleList([Layer() for _ in range(self.num_encoder_layers)])
 
     def forward(self, input_embeddings):
         layer_output = input_embeddings
