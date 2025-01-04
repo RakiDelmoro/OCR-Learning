@@ -154,13 +154,12 @@ class Layer(nn.Module):
 class DecoderLayer(nn.Module):
     def __init__(self, config=DecoderConfig):
         super().__init__()
-        self.layer = Layer()
-        self.decoder_layer = nn.ModuleList([self.layer for _ in range(config.num_decoder_layers)])
+        self.decoder_layers = nn.ModuleList([Layer() for _ in range(config.num_decoder_layers)])
 
-    def forward(self, input_embeddings):
+    def forward(self, input_embeddings, encoder_hidden_state, decoder_mask, encoder_mask):
         layer_output = input_embeddings
         for each in self.decoder_layers:
-            layer_output = each(layer_output)
+            layer_output = each(layer_output, encoder_hidden_state, decoder_mask, encoder_mask)
         return layer_output
 
 class Decoder(nn.Module):
@@ -173,6 +172,5 @@ class Decoder(nn.Module):
 
     def forward(self, target, encoder_hidden_state, decoder_mask, encoder_mask):
         hidden_states = self.embeddings(target)
-        for layer_module in self.decoder_layers:
-            layer_outputs = layer_module(hidden_states, encoder_hidden_state, decoder_mask, encoder_mask)
+        layer_outputs = self.decoder_layers(hidden_states, encoder_hidden_state, decoder_mask, encoder_mask)
         return self.dense(layer_outputs)
