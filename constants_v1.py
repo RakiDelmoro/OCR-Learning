@@ -11,7 +11,7 @@ BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
 
 # File where to save model checkpoint and fully trained
-MODEL_CHECKPOINT_FOLDER = "ModelCheckpoints2"
+MODEL_CHECKPOINT_FOLDER = "ModelCheckpointsV2"
 FULL_TRAINED_MODEL = "model.pth"
 
 START_TOKEN = '\N{Start of Text}'
