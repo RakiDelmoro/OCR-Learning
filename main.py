@@ -13,7 +13,7 @@ def runner(model, optimizer, scheduler, training_dataset, validation_dataset, in
     validation_loader_length = validation_data_length // validation_loader.batch_size
     start_epoch = 1
 
-    if use_checkpoint: start_epoch = check_model_checkpoint_availability()
+    if use_checkpoint: start_epoch = check_model_checkpoint_availability(model, optimizer)
 
     for epoch in range(start_epoch, NUM_EPOCHS):
         train_loss = train_model(train_dataset=training_loader, model=model, optimizer=optimizer, dataloader_length=train_loader_length, encoder_trainer=False)
@@ -29,8 +29,8 @@ def runner(model, optimizer, scheduler, training_dataset, validation_dataset, in
         current_validation_loss = 0.0
         if use_checkpoint:
             if val_loss < current_validation_loss: current_validation_loss = save_best_model(model, val_loss)
-
             print(f"{RED}Saving do not turn off!{CLEAR}")
             save_checkpoint(epoch=epoch, model=model, optimizer=optimizer, t_loss=train_loss, v_loss=val_loss, checkpoint_folder=MODEL_CHECKPOINT_FOLDER)
             print(f"{GREEN}Done saving!{CLEAR}")
+
     torch.save(model.state_dict(), FULL_TRAINED_MODEL)
