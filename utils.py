@@ -20,14 +20,17 @@ def save_best_model(model, val_loss):
     return current_validation_loss
 
 def check_model_checkpoint_availability(model, optimizer):
+    start_epoch = 0
     if os.path.exists(MODEL_CHECKPOINT_FOLDER):
         list_of_checkpoints = os.listdir(MODEL_CHECKPOINT_FOLDER)
-        if len(list_of_checkpoints) == 0: print(f"No checkpoint file yet.")
+        if len(list_of_checkpoints) == 0:
+            print(f"No checkpoint file yet.")
+            start_epoch = start_epoch
         else:
             loaded_epoch, t_loss, v_loss, checkpoint = load_checkpoint(model_checkpoint_folder=MODEL_CHECKPOINT_FOLDER, model=model, optimizer=optimizer)
             print(f"{WHITE_UNDERLINE}loaded checkpoint file from {checkpoint} have EPOCH: {loaded_epoch} with a training loss: {t_loss}, Validation loss: {v_loss}{CLEAR}")
             start_epoch = loaded_epoch + 1
-    return start_epoch
+    return start_epoch 
 
 def train_model(train_dataset, model, optimizer, dataloader_length, encoder_trainer):
     model.train()
@@ -99,7 +102,7 @@ def evaluate_model(validation_dataset, model, dataloader_length, encoder_trainer
 
 def save_checkpoint(epoch, model, optimizer, t_loss, v_loss, checkpoint_folder):
     checkpoint = {"epoch": epoch, "model_state_dict": model.state_dict(), "optimizer_state_dict": optimizer.state_dict(), "train_loss": t_loss, "val_loss": v_loss}
-    torch.save(checkpoint, f"./{checkpoint_folder}/mark-{epoch%5}.tar")
+    torch.save(checkpoint, f"./{checkpoint_folder}/Isaiah-{epoch%5}.tar")
 
 def get_latest_save_checkpoint(model_checkpoint_folder, list_of_checkpoint_files): 
     latest_modified_checkpoint_file = ""
