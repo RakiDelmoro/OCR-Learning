@@ -28,13 +28,11 @@ class PositionalEncoding(nn.Module):
 class CharacterEmbeddings(nn.Module):
     def __init__(self, config=DecoderConfig):
         super().__init__()
-        self.character_embeddings = nn.Embedding(config.vocab_size, config.embedding_dimension,
-                                                 config.pad_token_id)
+        self.character_embeddings = nn.Embedding(config.vocab_size, config.embedding_dimension, config.pad_token_id)
         self.register_buffer("position_ids", torch.arange(config.max_sequence_length).expand((1, -1)), persistent=False)
 
         self.padding_idx = config.pad_token_id
-        self.position_embeddings = nn.Embedding(
-            config.max_sequence_length, config.embedding_dimension, padding_idx=self.padding_idx)
+        self.position_embeddings = nn.Embedding(config.max_sequence_length, config.embedding_dimension, padding_idx=self.padding_idx)
     def forward(self, input_ids):
         character_embedding = self.character_embeddings(input_ids)
         position_ids = create_position_ids_from_input_ids(input_ids, self.padding_idx)
@@ -87,10 +85,8 @@ class AttentionMechanism(nn.Module):
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-2, -1))
 
         query_length, key_length = query_layer.shape[2], key_layer.shape[2]
-        position_ids_left = torch.arange(query_length, dtype=torch.long,
-                                            device=hidden_states.device).view(-1, 1)
-        position_ids_right = torch.arange(key_length, dtype=torch.long,
-                                            device=hidden_states.device).view(1, -1)
+        position_ids_left = torch.arange(query_length, dtype=torch.long, device=hidden_states.device).view(-1, 1)
+        position_ids_right = torch.arange(key_length, dtype=torch.long, device=hidden_states.device).view(1, -1)
         distance = position_ids_left - position_ids_right
         position_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
         positional_embedding = position_embedding.type(query_layer.dtype)
@@ -130,7 +126,7 @@ class FeedForward(nn.Module):
 class Layer(nn.Module):
     def __init__(self, config=DecoderConfig):
         super().__init__()
-        
+
         self.self_attention = AttentionMechanism()
         self.cross_attention = AttentionMechanism()
         self.ff_layer = FeedForward()
